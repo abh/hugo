@@ -119,6 +119,8 @@ func renderBytesWithTOC(content []byte, pagefmt string) []byte {
 		return markdownRenderWithTOC(content)
 	case "markdown":
 		return markdownRenderWithTOC(content)
+	case "textile":
+		return textileRenderWithTOC(content)
 	case "rst":
 		return []byte(getRstContent(content))
 	}
@@ -130,6 +132,8 @@ func renderBytes(content []byte, pagefmt string) []byte {
 		return markdownRender(content)
 	case "markdown":
 		return markdownRender(content)
+	case "textile":
+		return textileRender(content)
 	case "rst":
 		return []byte(getRstContent(content))
 	}
@@ -478,6 +482,8 @@ func guessType(in string) string {
 		return "markdown"
 	case "rst":
 		return "rst"
+	case "textile":
+		return "textile"
 	case "html", "htm":
 		return "html"
 	}
@@ -497,6 +503,7 @@ func (page *Page) parse(reader io.Reader) error {
 	if len(front) != 0 {
 		fm := page.detectFrontMatter(rune(front[0]))
 		meta, err := fm.parse(front)
+		// fmt.Printf("meta for '%s': %#v\n", page.FileName, meta)
 		if err != nil {
 			return err
 		}
@@ -520,7 +527,7 @@ func (p *Page) ProcessShortcodes(t bundle.Template) {
 func (page *Page) Convert() error {
 	markupType := page.guessMarkupType()
 	switch markupType {
-	case "markdown", "rst":
+	case "markdown", "rst", "textile":
 		tmpContent, tmpTableOfContents := extractTOC(page.renderContent(RemoveSummaryDivider(page.rawContent)))
 		page.Content = bytesToHTML(tmpContent)
 		page.TableOfContents = bytesToHTML(tmpTableOfContents)
@@ -573,6 +580,14 @@ func markdownRenderWithTOC(content []byte) []byte {
 	return blackfriday.Markdown(content, renderer, extensions)
 }
 
+func textileRender(content []byte) []byte {
+	return markdownRender(content)
+}
+
+func textileRenderWithTOC(content []byte) []byte {
+	return markdownRenderWithTOC(content)
+}
+
 func extractTOC(content []byte) (newcontent []byte, toc []byte) {
 	origContent := make([]byte, len(content))
 	copy(origContent, content)
@@ -616,6 +631,8 @@ func ReaderToBytes(lines io.Reader) []byte {
 
 func (p *Page) TargetPath() (outfile string) {
 
+	// fmt.Printf("getting targetpath for\n%-- #v\n", p.PageMeta)
+
 	// Always use Url if it's specified
 	if len(strings.TrimSpace(p.Url)) > 2 {
 		outfile = strings.TrimSpace(p.Url)
@@ -623,6 +640,7 @@ func (p *Page) TargetPath() (outfile string) {
 		if strings.HasSuffix(outfile, "/") {
 			outfile = outfile + "index.html"
 		}
+		// fmt.Printf("url targetpath: '%s'\n", outfile)
 		return
 	}
 
